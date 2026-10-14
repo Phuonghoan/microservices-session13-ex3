@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
+import org.springframework.security.authentication.BadCredentialsException;
+
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -31,7 +33,7 @@ public class AuthController {
     }
 
     // ==================================
-    // BÀI 1: ĐĂNG KÝ TÀI KHOẢN
+    // BÀI 1: ĐĂNG KÝ
     // ==================================
 
     @PostMapping("/register")
@@ -56,7 +58,7 @@ public class AuthController {
     }
 
     // ==================================
-    // BÀI 2: TẠO JWT
+    // BÀI 2: TEST JWT
     // ==================================
 
     @GetMapping(
@@ -67,7 +69,6 @@ public class AuthController {
             @RequestParam String username
     ) {
 
-        // Tìm User trong PostgreSQL
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() ->
                         new ResponseStatusException(
@@ -76,11 +77,43 @@ public class AuthController {
                         )
                 );
 
-        // Sinh JWT
         return jwtUtil.generateToken(user);
     }
 
-    // DTO của Bài 1
+    // ==================================
+    // BÀI 3: LOGIN
+    // ==================================
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(
+            @RequestBody LoginRequest request
+    ) {
+
+        String token = authService.login(
+                request.username(),
+                request.password()
+        );
+
+        return ResponseEntity.ok(
+                new LoginResponse(token)
+        );
+    }
+
+    // Xử lý lỗi đăng nhập
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleBadCredentials(
+            BadCredentialsException exception
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse("Bad credentials"));
+    }
+
+    // ==================================
+    // DTO
+    // ==================================
+
     public record RegisterRequest(
             String username,
             String password
@@ -91,6 +124,22 @@ public class AuthController {
             String id,
             String username,
             String role
+    ) {
+    }
+
+    public record LoginRequest(
+            String username,
+            String password
+    ) {
+    }
+
+    public record LoginResponse(
+            String token
+    ) {
+    }
+
+    public record ErrorResponse(
+            String message
     ) {
     }
 }
